@@ -1,6 +1,6 @@
 # WORKFLOW_GUIDE.md
 
-Human-facing detailed process guide. AI agents do not need this file.
+Human-facing process guide. AI agents do not need this file.
 
 ---
 
@@ -14,102 +14,159 @@ bash /path/to/ai-dev-workspace/scripts/new-project.sh my-project
 .\new-project.ps1 my-project
 ```
 
-Creates `my-project/` as a standalone repo with visible root files plus hidden `.ai/` support files.
-
 Then:
-1. Edit `PROJECT_CONTEXT.yaml` with project info
-2. Start Claude Code session in the project folder — `CLAUDE.md` auto-loads context
+1. Edit `PROJECT_CONTEXT.yaml`
+2. Start Claude Code in the project folder — `CLAUDE.md` auto-loads context
 
 ---
 
-## 3-Phase Workflow
+## 5-Phase Workflow
 
 ```
-Phase 1: ANALYZE & SPEC (Claude)
-  → fill .ai/SPEC.template.yaml copy
-  → produce tasks in TASK.template.md format
+Phase 0: BRIEF       (User)   — fill PROJECT_CONTEXT.yaml
+Phase 1: DECOMPOSE   (Claude) — generate Epic → Stories → Tasks
+Phase 2: REVIEW      (User)   — approve Stories, then Tasks
+Phase 3: IMPLEMENT   (Codex)  — Claude auto-delegates via /codex:rescue
+Phase 4: VERIFY      (Claude) — check Done Criteria, loop or advance
+```
 
-Phase 2: IMPLEMENT (Codex)
-  → one task per session
-  → strict file scope, stop on ambiguity
+Claude usage is concentrated in Phases 1, 2, and 4.
+Codex handles all implementation in Phase 3.
 
-Phase 3: VERIFY (Claude)
-  → fill .ai/VERIFY.template.md copy
-  → check Done Criteria, cross-cutting, goal alignment
+---
+
+## Phase 0 — BRIEF
+
+Fill `PROJECT_CONTEXT.yaml`:
+- `project.purpose` — one sentence goal
+- `stack` — language, framework, database, infra, test
+- `constraints` — hard limits (performance, compliance, no external deps, etc.)
+- `public_interfaces` — APIs Codex must not change without approval
+
+---
+
+## Phase 1 — DECOMPOSE (Claude)
+
+Start Claude Code in the project folder. Say:
+
+```
+Analyze PROJECT_CONTEXT.yaml and decompose into Epic, Stories, and atomic Tasks.
+```
+
+Claude will generate:
+- `.ai/EPIC.md` — overall goal + story list
+- `.ai/stories/STORY-001.md`, `STORY-002.md`, … — one per feature area
+- `.ai/tasks/TASK-001.md`, `TASK-002.md`, … — one per atomic unit of work
+
+**Atomic Task sizing:**
+- 1–3 files max
+- One independently verifiable outcome
+- Completable in a single Codex session (roughly 30 min equivalent)
+
+---
+
+## Phase 2 — REVIEW
+
+### Story review
+Read `.ai/stories/`. For each story:
+- Scope correct?
+- Priority right?
+- Any missing stories?
+
+Tell Claude to adjust, re-order, or split.
+
+### Task review
+Read `.ai/tasks/`. For each task:
+- Files listed correctly?
+- Done Criteria specific enough?
+- Any task too large? (If yes, ask Claude to split)
+
+Approve when ready.
+
+---
+
+## Phase 3 — IMPLEMENT
+
+After Task approval, tell Claude:
+
+```
+Delegate TASK-001 to Codex.
+```
+
+Claude calls `/codex:rescue` with the full task content automatically.
+Codex writes the code. Claude does not touch implementation files.
+
+For background execution (non-blocking):
+```
+Delegate TASK-001 to Codex in background.
 ```
 
 ---
 
-## Session Patterns
+## Phase 4 — VERIFY
 
-### Design session (Claude)
+After Codex finishes, Claude reviews against:
+- Task `[Done Criteria]`
+- `AGENTS.md` review checklist
+- `.ai/CODE_STYLE.md` (for style-sensitive review)
 
-Use Plan Mode first (`Shift+Tab`), then:
-```
-@CODE_STYLE.md   ← only if reviewing code
-[describe what to design]
-```
-`CLAUDE.md` already auto-loads `AGENTS.md`, `PROJECT_CONTEXT.yaml`, and `.ai/CAVEMAN.md`.
+**Pass:** Claude marks Task done in `.ai/EPIC.md`, moves to next Task.
 
-**Output to request:** module structure, interface spec, task breakdown in `[Task]...[Done Criteria]` format. Record design decisions in `.ai/SPEC.template.yaml` copy.
-
-### Implementation (Codex)
-
-Fill `TASK.template.md` and paste into Codex. See `docs/TASK_GUIDE.md` for examples.
-
-Codex reads `AGENTS.md` and `PROJECT_CONTEXT.yaml` from the repo automatically.
-
-### Verify session (Claude — Phase 3)
-
-```
-@.ai/CODE_STYLE.md
-Verify Codex output. Follow AGENTS.md review checklist and fill .ai/VERIFY.template.md.
-
-[original task]
-
-[modified file contents — run security pre-check first]
-```
-
-Security pre-check before attaching files:
-```bash
-grep -rEi "bearer |eyJ[a-zA-Z0-9]{10,}|api[_-]?key\s*=" <files>
-```
+**Fail:** Claude writes `[Fix] file:line — problem — fix` items, creates a fix Task, delegates to Codex again.
 
 ---
 
-## Context Management (Claude Code)
+## Iteration Pattern
+
+```
+For each approved Task:
+  → /codex:rescue (Phase 3)
+  → Claude verify (Phase 4)
+  → pass? next Task : fix Task → repeat
+```
+
+After all Tasks in a Story pass:
+- Claude marks Story `status: done` in `.ai/EPIC.md`
+- Move to next Story
+
+---
+
+## Context Management
 
 - `/clear` between unrelated tasks — context fills fast
-- After 2+ failed corrections: `/clear` and write a better initial prompt
-- Rewind: `Esc+Esc` or `/rewind` to restore conversation/code state
-- Long investigation? Say `"use a subagent to investigate X"` — keeps main context clean
-- `claude --continue` to resume last session, `claude --resume` to pick session
+- `claude --continue` to resume last session
+- Long investigation? `"use a subagent to investigate X"` — keeps main context clean
 
 ---
 
 ## Recovery
 
-**Codex output fails:**
-1. Write specific `[Fix] file:line — problem — fix` items
-2. Package as new task (original + fixes)
-3. Re-deliver to Codex
-4. 2+ failures → redesign, decompose smaller, re-deliver
+**Codex output fails twice:**
+1. Split the Task into smaller pieces
+2. Claude rewrites `[Done Criteria]` to be more explicit
+3. Re-delegate
 
 **Requirements change mid-task:**
 1. Stop Codex work
 2. Update `PROJECT_CONTEXT.yaml`
-3. Claude redesigns affected parts
-4. New task → re-deliver
+3. Claude regenerates affected Stories/Tasks
+4. Re-review, re-delegate
 
 **Interface conflict:**
 - Claude's interface definition always wins
 - Request Codex to realign
-- Update `PROJECT_CONTEXT.yaml`
+- Update `public_interfaces` in `PROJECT_CONTEXT.yaml`
 
 ---
 
-## State Management
+## File Map
 
-Update `PROJECT_CONTEXT.yaml` on: design complete, major impl done, architecture change, priority change.
-
-Stale context → wrong tasks.
+| File | Owner | Purpose |
+|------|-------|---------|
+| `PROJECT_CONTEXT.yaml` | User | Project brief |
+| `.ai/EPIC.md` | Claude | Goal + story/task status tracker |
+| `.ai/stories/STORY-NNN.md` | Claude | Feature-level breakdown |
+| `.ai/tasks/TASK-NNN.md` | Claude | Atomic Codex work unit |
+| `.ai/templates/` | — | Blank templates for reference |
+| `.ai/CODE_STYLE.md` | User/Claude | Style rules for review |
+| `.ai/CAVEMAN.md` | — | Response mode config |

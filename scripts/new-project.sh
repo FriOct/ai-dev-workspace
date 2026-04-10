@@ -28,6 +28,8 @@ echo ""
 
 mkdir -p "$TARGET_DIR"
 cp -R "$SCAFFOLD_DIR"/. "$TARGET_DIR"/
+# ensure runtime dirs exist (scaffold ships with .gitkeep placeholders)
+mkdir -p "$TARGET_DIR/.ai/stories" "$TARGET_DIR/.ai/tasks"
 success "Copied scaffold"
 
 find "$TARGET_DIR" -type f \
@@ -58,4 +60,6 @@ echo "  Next:"
 echo "  1. cd ${PROJECT_NAME}"
 echo "  2. Fill PROJECT_CONTEXT.yaml"
 echo "  3. Start Claude Code in that folder"
+echo "  4. Ask Claude to decompose into Epic / Stories / Tasks"
+echo "  5. Review, approve, then: 'Delegate TASK-001 to Codex'"
 echo ""

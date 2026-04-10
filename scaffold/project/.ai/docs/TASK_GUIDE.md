@@ -1,13 +1,16 @@
-# Task Guide — Examples & Field Writing
+# Task Guide — Atomic Task Writing
 
-Human-facing guide. For actual task handoff, use TASK.template.md.
+Human-facing guide. For blank template, see `.ai/templates/TASK.template.md`.
+
+Claude generates Tasks automatically in Phase 1. This guide is for manual review and adjustment.
 
 ---
 
 ## Field Rules
 
 - `[Task]`: verb-first, one line, one purpose only
-- `[Files]`: exact paths — Codex will not touch anything unlisted
+- `[Story]`: parent STORY-NNN id
+- `[Files]`: exact paths — 1–3 files max. Codex will not touch anything unlisted
 - `[Goal]`: must say *what*, not "make it good"
 - `[Inputs/Outputs]`: explicit types — "data" is not a type
 - `[Constraints]`: prohibitions too — silence = permission
@@ -17,11 +20,26 @@ SECURITY: Never paste real tokens/API keys/JWTs. Use REDACTED or fake values.
 
 ---
 
-## Example 1: Token Refresh
+## Sizing Check
+
+A Task is too large if any of these are true:
+- Touches more than 3 files
+- Has more than 5 Done Criteria items
+- Requires understanding of more than one domain to verify
+- Would take a senior dev more than ~30 min
+
+Split it.
+
+---
+
+## Example 1: Token Refresh (good atomic size)
 
 ```text
 [Task]
-Implement refresh token handling
+Implement token refresh logic
+
+[Story]
+STORY-001
 
 [Files]
 src/auth/token_manager.py
@@ -35,16 +53,17 @@ input: current_token: str, expires_at: datetime
 output: refreshed token string (str)
 
 [Constraints]
-- Do not change existing public API signatures
+- Do not change existing public function signatures
 - Keep async behavior
-- Add logging (mask token value in logs)
-- Add tests (fake tokens only)
+- Mask token value in any log output
+- Use fake tokens in tests only
 
 [Done Criteria]
-- [ ] At least 3 unit tests
-- [ ] Type hints included
-- [ ] Error handling included
-- [ ] Expiry logic triggers at < 5 min threshold exactly
+- [ ] refresh triggers when expires_at < now + 5min
+- [ ] refresh does NOT trigger when > 5min remain
+- [ ] token value masked in logs
+- [ ] at least 3 unit tests with fake tokens
+- [ ] type hints on all new functions
 ```
 
 ---
@@ -55,31 +74,33 @@ output: refreshed token string (str)
 [Task]
 Add UserRepository with CRUD operations
 
+[Story]
+STORY-002
+
 [Files]
 src/db/user_repository.py
 tests/test_user_repository.py
 
 [Goal]
-Implement create, read, update, delete methods for the User entity.
+Implement create, read, update, delete for the User entity using SQLAlchemy ORM.
 
 [Inputs/Outputs]
 input (create): user_data: dict
-input (read): user_id: int
-input (update): user_id: int, update_data: dict
-input (delete): user_id: int
+input (read/update/delete): user_id: int
 output: User object or None
 
 [Constraints]
-- Use SQLAlchemy ORM (no raw SQL)
+- Use SQLAlchemy ORM only — no raw SQL
 - Return None for non-existent user_id (do not raise)
-- Delete is soft delete via deleted_at column
-- Include transaction handling
+- Delete = soft delete via deleted_at column
+- No new dependencies
 
 [Done Criteria]
-- [ ] All four CRUD methods implemented
-- [ ] At least 2 unit tests per method
-- [ ] Non-existent ID case tested
-- [ ] Type hints and docstrings included
+- [ ] all four CRUD methods exist
+- [ ] non-existent user_id returns None (not exception)
+- [ ] soft delete sets deleted_at, does not remove row
+- [ ] at least 2 tests per method
+- [ ] type hints included
 ```
 
 ---
@@ -90,30 +111,51 @@ output: User object or None
 [Task]
 Add POST /api/v1/users endpoint
 
+[Story]
+STORY-003
+
 [Files]
 src/api/routes/users.py
 tests/test_users_api.py
 
 [Goal]
-Implement a REST endpoint for creating a user.
+REST endpoint for creating a user. Returns 201 on success, 409 on duplicate email, 422 on validation error.
 
 [Inputs/Outputs]
-input (request body):
-  { "email": "string", "name": "string", "role": "user"|"admin" }
-output (201):
-  { "id": int, "email": str, "name": str, "role": str, "created_at": ISO8601 }
+input:  { "email": str, "name": str, "role": "user"|"admin" }
+output (201): { "id": int, "email": str, "name": str, "role": str, "created_at": ISO8601 }
 output (409): duplicate email
-output (422): validation error
+output (422): missing/invalid field
 
 [Constraints]
-- Return 409 on duplicate email
-- Use Pydantic schema for input validation
-- Modify router file only (no service layer changes)
+- Modify router file only — no service layer changes
+- Use Pydantic for input validation
 - Do not change existing routes
 
 [Done Criteria]
-- [ ] Success case test
-- [ ] Duplicate email case test
-- [ ] Missing required field case test
-- [ ] Response schema matches spec above
+- [ ] 201 on valid input
+- [ ] 409 on duplicate email
+- [ ] 422 on missing required field
+- [ ] response schema matches spec above exactly
+- [ ] test for each response code
 ```
+
+---
+
+## Bad Task Examples (too large — split these)
+
+```text
+# BAD: too many files, too many concerns
+[Task]
+Implement full authentication system
+
+[Files]
+src/auth/token_manager.py
+src/auth/session.py
+src/api/routes/auth.py
+src/db/user_repository.py
+tests/test_auth.py
+tests/test_session.py
+```
+
+Split into: token refresh task + session task + auth routes task + user repo task.

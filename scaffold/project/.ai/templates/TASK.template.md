@@ -1,5 +1,7 @@
 [Task]
 
+[Story]
+
 [Files]
 
 [Goal]
