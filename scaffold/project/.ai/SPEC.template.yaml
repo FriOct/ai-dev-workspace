@@ -1,0 +1,28 @@
+# SPEC.template.yaml
+# Phase 1 design artifact — fill before generating tasks.
+# Copy this file, rename (e.g. SPEC-auth.yaml), fill in, commit.
+# Claude owns this file. Codex reads it for context only.
+
+spec:
+  id: ""              # short slug, e.g. "auth-refresh"
+  date: ""            # YYYY-MM-DD
+  goal: ""            # one sentence — what problem does this solve?
+
+decisions:
+  - decision: ""
+    reason: ""
+
+interfaces:
+  # public contracts Codex must not change without Claude approval
+  - name: ""
+    signature: ""
+    notes: ""
+
+constraints:
+  - ""
+
+derived_tasks:
+  # list task IDs in delivery order
+  - id: ""
+    summary: ""
+    file: ""          # path to filled TASK.md, e.g. tasks/TASK-001.md

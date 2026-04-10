@@ -1,0 +1,47 @@
+# PROJECT_CONTEXT.yaml
+# Agent-facing structured context. Auto-loaded via CLAUDE.md.
+# SECURITY: No real tokens/keys/JWTs. Use REDACTED or fake values only.
+# Edit this file when project state changes.
+
+project:
+  name: "__PROJECT_NAME__"
+  purpose: ""
+
+stack:
+  language: ""
+  framework: ""
+  database: ""
+  infra: ""
+  test: ""
+  libs: []
+
+structure: |
+  # paste directory tree here
+
+public_interfaces:
+  # Codex must not change these without Claude approval
+  - ""
+
+constraints:
+  - ""
+
+modules:
+  - path: ""
+    role: ""
+
+status:
+  updated_at: "__TODAY__"
+  done:
+    - project initialized
+  doing:
+    - fill PROJECT_CONTEXT.yaml
+  blocked: []
+
+priorities:
+  - fill PROJECT_CONTEXT.yaml
+  - request architecture design from Claude
+
+decisions:
+  - date: "__TODAY__"
+    decision: initialized from ai-dev-workspace scaffold
+    reason: standalone collaboration project bootstrap
